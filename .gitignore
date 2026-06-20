@@ -23,7 +23,7 @@ ios/Runner.xcworkspace/xcshareddata/
 
 # Firebase
 lib/firebase_options.dart
-
+firebase.json
 # IDE
 .idea/
 .vscode/
