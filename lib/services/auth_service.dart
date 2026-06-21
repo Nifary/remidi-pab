@@ -1,10 +1,13 @@
+import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthService {
   static final FirebaseAuth _auth = FirebaseAuth.instance;
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // ── Register ─────────────────────────────────────────────────────────────
   static Future<UserCredential> register({
@@ -17,7 +20,6 @@ class AuthService {
       password: password,
     );
 
-    // Save extra profile data to Firestore
     await _firestore.collection('users').doc(credential.user!.uid).set({
       'name': name,
       'email': email,
@@ -53,6 +55,28 @@ class AuthService {
     await _auth.signOut();
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
+  }
+
+  // ── Upload & update profile photo ─────────────────────────────────────────
+  static Future<String> uploadProfilePhoto(File imageFile) async {
+    final uid = currentUser?.uid;
+    if (uid == null) throw Exception('User tidak ditemukan');
+
+    // Upload ke Firebase Storage: profile_photos/{uid}.jpg
+    final ref = _storage.ref().child('profile_photos/$uid.jpg');
+    final uploadTask = await ref.putFile(
+      imageFile,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
+
+    final downloadUrl = await uploadTask.ref.getDownloadURL();
+
+    // Simpan URL ke Firestore
+    await _firestore.collection('users').doc(uid).update({
+      'photoUrl': downloadUrl,
+    });
+
+    return downloadUrl;
   }
 
   // ── Session helpers ───────────────────────────────────────────────────────
